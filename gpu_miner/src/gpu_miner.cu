@@ -9,26 +9,31 @@ __constant__ BYTE gpu_difficulty_5_zeros[SHA256_HASH_SIZE] = "000009999999999999
 
 
 __global__ void findNonce(BYTE *block_content, int current_length, BYTE *block_hash, bool *found, uint64_t *nonce) {
-    int local_nonce = blockIdx.x * blockDim.x + threadIdx.x;
-    if (local_nonce > MAX_NONCE) {
-        return;
-    }
-    if (*found) {
-        return;
-    }
+    int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_threads = gridDim.x * blockDim.x;
+    uint64_t l_start = thread_id * MAX_NONCE / total_threads;
+    uint64_t l_end = (thread_id + 1) * MAX_NONCE / total_threads;
 
     char local_nonce_string[NONCE_SIZE];
     BYTE local_block_hash[SHA256_HASH_SIZE];
 
-    intToString(local_nonce, local_nonce_string);
-    d_strcpy((char *)block_content + current_length, local_nonce_string);
-    apply_sha256(block_content, d_strlen((const char *)block_content), local_block_hash, 1);
+    for (uint64_t local_nonce = l_start; *found != true && local_nonce < l_end; local_nonce++) {
+        intToString(local_nonce, local_nonce_string);
+        d_strcpy((char *)block_content + current_length, local_nonce_string);
+        apply_sha256(block_content, d_strlen((const char *)block_content), local_block_hash, 1);
 
-    if (*found == false && compare_hashes(local_block_hash, gpu_difficulty_5_zeros) <= 0) {
-        d_strcpy((char *)block_hash, (const char *)local_block_hash);
-        *found = true;
-        *nonce = local_nonce;
+        if (*found == false && compare_hashes(local_block_hash, gpu_difficulty_5_zeros) <= 0) {
+            d_strcpy((char *)block_hash, (const char *)local_block_hash);
+            *found = true;
+            *nonce = local_nonce;
+        }
     }
+}
+
+int cuda_get_sm_count() {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    return prop.multiProcessorCount;
 }
 
 int main(int argc, char **argv) {
@@ -62,8 +67,8 @@ int main(int argc, char **argv) {
     cudaEvent_t start, stop;
     startTiming(&start, &stop);
 
-    int block_size = 128;
-    int nr_blocks = MAX_NONCE / block_size;
+    int block_size = 256;
+    int nr_blocks = cuda_get_sm_count();
 
     BYTE *d_block_content, *d_block_hash;
     bool *d_found;
