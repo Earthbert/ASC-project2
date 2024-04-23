@@ -16,11 +16,13 @@ __global__ void findNonce(BYTE *block_content, int current_length, BYTE *block_h
 
     char local_nonce_string[NONCE_SIZE];
     BYTE local_block_hash[SHA256_HASH_SIZE];
+    BYTE local_block_content[BLOCK_SIZE];
+    d_strcpy((char *)local_block_content, (const char *)block_content);
 
     for (uint64_t local_nonce = l_start; *found != true && local_nonce < l_end; local_nonce++) {
         intToString(local_nonce, local_nonce_string);
-        d_strcpy((char *)block_content + current_length, local_nonce_string);
-        apply_sha256(block_content, d_strlen((const char *)block_content), local_block_hash, 1);
+        d_strcpy((char *)local_block_content + current_length, local_nonce_string);
+        apply_sha256(local_block_content, d_strlen((const char *)local_block_content), local_block_hash, 1);
 
         if (*found == false && compare_hashes(local_block_hash, gpu_difficulty_5_zeros) <= 0) {
             d_strcpy((char *)block_hash, (const char *)local_block_hash);
@@ -91,8 +93,6 @@ int main(int argc, char **argv) {
 
     cudaMemcpy(block_hash, d_block_hash, SHA256_HASH_SIZE, cudaMemcpyDeviceToHost);
     cudaMemcpy(&nonce, d_nonce, sizeof(uint64_t), cudaMemcpyDeviceToHost);
-
-    printf("Time: %f\n", seconds);
 
     printResult(block_hash, nonce, seconds);
 
