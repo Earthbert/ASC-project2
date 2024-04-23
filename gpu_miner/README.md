@@ -1,18 +1,36 @@
-Descriere:
+# ASC - Tema 2
 
-- Veți porni de la directorul gpu_miner, în care veți realiza implementarea în CUDA a logicii din cpu_miner.
-- Veți implementa funcția device findNonce, care va paraleliza căutarea nonce-ului, folosind CUDA Threads. Aceasta trebuie implementată astfel încât să caute prin toate numerele de la 1 la MAX_NONCE.
-- Pentru a va ajută, aveți deja implementate funcții ajutătoare în utils.cu. Vă recomandăm să va folosiți de ele în implementarea voastră.
-Nonce-ul găsit, hash-ul block-ului, precum și timpul rulării kernel-ului, vor fi scrise într-un fișier results.csv, în urmă apelarii funcției printResult din utils.cu.
+### Daraban Albert-Timotei
 
-Observații:
+## Implementare
 
-1. Compilarea si rularea temei se vor face EXCLUSIV pe coada xl. Nu este nevoie să modificăți nimic în Makefile, regulile sunt deja făcute. Tot ce trebuie să faceți este să apelați make, make run și make clean, ca la laborator.
-2. Veți modifica DOAR fișierul gpu_miner.cu. Celelate fișiere din directorul gpu_miner se vor suprascrie la testarea automată.
-3. Deși nonce-ul este un număr întreg, potiziv, pe 32 biți, MAX_NONCE pe GPU este setat cu valoarea 1e8, în loc de UINT32_MAX (~4.29 * 1e9). Motivul este de a reduce timpul și de a nu întâmpină bottleneck-uri când sunt trimise multe job-uri, în același timp, de la mai mulți studenți, pe coada xl.
+* Prima data am incercat sa iau direct codul for loop-ul dat ca exemplu de pe CPU. Si am creat MAX_NONCE GPU threads. Dupa cateva este sa vazut un speed up, dar nu suficient (1.6 s).
+* Implementarea actuala este una la fel de simpla cu start si end de la APD. Practic creez NR_SMs * 256 threads si fiecare incearca o portiune din numere. Cand se gaseste se pune un flag si primul thread care il schimba isi scrie rezultatul.
 
-Pași pentru rulare:
+## Rezultate
 
-1. To compile:  make
-2. To run:      make run
-3. To clean:    make clean
+| Test | Timp XL(s) | Timp Local RTX 3060 Laptop(s) |
+|------|------------|-------------------------------|
+|   1  |    0.11    |              0.18             |
+|   2  |    0.15    |              0.15             |
+|   3  |    0.20    |              0.18             |
+|   4  |    0.21    |              0.17             |
+|   5  |    0.10    |              0.18             |
+|   6  |    0.05    |              0.18             |
+|   7  |    0.22    |              0.18             |
+|   8  |    0.35    |              0.19             |
+|   9  |    0.30    |              0.18             |
+|  10  |    0.06    |              0.18             |
+|  11  |    0.19    |              0.18             |
+|  12  |    0.36    |              0.18             |
+|  13  |    0.03    |              0.18             |
+|  14  |    0.08    |              0.17             |
+|  15  |    0.38    |              0.15             |
+|  16  |    0.03    |              0.18             |
+|  17  |    0.19    |              0.17             |
+|  18  |    0.07    |              0.17             |
+|  19  |    0.10    |              0.17             |
+|  20  |    0.03    |              0.18             |
+|  AVG |    0.16    |              0.175            |
+
+Dupa cum se vede coada XL este in medie mai rapida decat masina mea locala. Dar are si o discrepanta mai mare intre valori care probabil vine de la faptul ca sunt si alti utilizatori ca ruleaza si uneori GPU este mai incarcat.
